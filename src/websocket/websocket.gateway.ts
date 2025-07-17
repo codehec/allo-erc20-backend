@@ -11,7 +11,7 @@ import { Logger } from '@nestjs/common';
 
 export interface BlockchainEvent {
   contractAddress: string;
-  event: 'Transfer' | 'Minted' | 'Burned';
+  event: 'Transferred' | 'Minted' | 'Burned';
   data: {
     txHash: string;
     blockNumber: string;

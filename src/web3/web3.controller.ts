@@ -68,4 +68,22 @@ export class Web3Controller {
       });
     }
   }
+
+  @Get('events/filter/:address')
+  async getEventDataByUserAddress(@Param('address') address: string, @Query('eventType') eventType?: string) {
+    const events = await this.web3Service.getEventDataByUserAddress(address, eventType);
+    return { success: true, data: events };
+  }
+
+  @Get('report/daily')
+  async getReportDailyAll(@Query('eventType') eventType?: string) {
+    const events = await this.web3Service.getReportDaily(undefined, eventType);
+    return { success: true, data: events };
+  }
+
+  @Get('report/daily/:contractAddress')
+  async getReportDailyByContract(@Param('contractAddress') contractAddress: string, @Query('eventType') eventType?: string) {
+    const events = await this.web3Service.getReportDaily(contractAddress, eventType);
+    return { success: true, data: events };
+  }
 } 

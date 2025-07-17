@@ -1,8 +1,10 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import Web3 from 'web3';
+import * as path from 'path';
 import { blockchainConfig } from '../config/blockchain.config';
 import { contractsConfig } from '../config/contracts.config';
 import { BlockchainEventsGateway, BlockchainEvent } from '../websocket/websocket.gateway';
+import { Utils } from '../utils/utils';
 
 export interface PendingEvent {
   txHash: string;
@@ -24,6 +26,7 @@ export class Web3Service {
   private readonly logger = new Logger(Web3Service.name);
   
   private readonly batchSize = blockchainConfig.batchSize;
+  private utils = new Utils();
 
   constructor(
     @Inject(forwardRef(() => BlockchainEventsGateway))
@@ -58,6 +61,8 @@ export class Web3Service {
   
   private pendingEvents: PendingEvent[] = [];
   private isProcessingBatch = false;
+  
+  private readonly eventsFilePath = path.join(process.cwd(), 'data', 'events.json');
 
   async connect(): Promise<Web3> {
     if (this.isConnected && this.web3) {
@@ -164,37 +169,8 @@ export class Web3Service {
     return this.isConnected;
   }
 
-  getPendingEventsCount(): number {
-    return this.pendingEvents.length;
-  }
-
   getPendingEvents(): PendingEvent[] {
     return [...this.pendingEvents]; 
-  }
-
-
-  private decodeIndexedParameter(topic: string): any {
-
-    try {
-      const address = this.web3.utils.toChecksumAddress(topic);
-      return {
-        type: 'address',
-        value: address
-      };
-    } catch {
-      try {
-        const number = this.web3.utils.hexToNumberString(topic);
-        return {
-          type: 'uint256',
-          value: number
-        };
-      } catch {
-        return {
-          type: 'unknown',
-          value: topic
-        };
-      }
-    }
   }
 
   private startBatchProcessing(): void {
@@ -298,7 +274,7 @@ export class Web3Service {
       contractMap.set(contract.address.toLowerCase(), contract);
     }
     
-    const transferTopic = this.web3.utils.sha3('Transfer(address,address,uint256)') || '';
+    const transferTopic = this.web3.utils.sha3('Transferred(address,address,uint256)') || '';
     const mintedTopic = this.web3.utils.sha3('Minted(address,uint256)') || '';
     const burnedTopic = this.web3.utils.sha3('Burned(address,uint256)') || '';
     const topics = { transferTopic, mintedTopic, burnedTopic };
@@ -364,37 +340,39 @@ export class Web3Service {
           [
             { type: 'address', name: 'from', indexed: true },
             { type: 'address', name: 'to', indexed: true }, 
-            { type: 'uint256', name: 'value', indexed: false }
+            { type: 'uint256', name: 'amount', indexed: true }
           ],
           log.data,
-          [log.topics[1], log.topics[2]]
+          [log.topics[1], log.topics[2], log.topics[3]]
         );
         const fromAddress = decodedLog.from as string;
         const toAddress = decodedLog.to as string;
-        const value = decodedLog.value as bigint;
+        const amount = decodedLog.amount as bigint;
       
       const eventData = {
-        contractAddress,
-        eventType: 'Transfer',
-        txHash,
+        contractAddress: contractAddress.toLowerCase(),
+        eventType: 'Transferred',
+        txHash: txHash.toLowerCase(),
         blockNumber: blockNumber.toString(),
         timestamp,
         confirmations,
-        from: fromAddress,
-        to: toAddress,
-        value: value.toString()
+        from: fromAddress.toLowerCase(),
+        to: toAddress.toLowerCase(),
+        amount: amount.toString()
       };
       
-      this.logger.log(`Transfer event:`, eventData);
+      this.logger.log(`Transferred event:`, eventData);
       
-      this.emitBlockchainEvent('Transfer', contractAddress, {
+      this.addEventToStorage(eventData);
+      
+      this.emitBlockchainEvent('Transferred', contractAddress, {
         txHash,
         blockNumber: blockNumber.toString(),
         timestamp,
         confirmations,
         from: fromAddress,
         to: toAddress,
-        value: value.toString()
+        amount: amount.toString()
       });
       
     } else if (log.topics[0] === topics.mintedTopic) {
@@ -412,17 +390,19 @@ export class Web3Service {
         const amount = decodedLog.amount as bigint;
       
       const eventData = {
-        contractAddress,
+        contractAddress: contractAddress.toLowerCase(),
         eventType: 'Minted',
-        txHash,
+        txHash: txHash.toLowerCase(),
         blockNumber: blockNumber.toString(),
         timestamp,
         confirmations,
-        to: toAddress,
+        to: toAddress.toLowerCase(),
         amount: amount.toString()
       };
       
       this.logger.log(`Minted event:`, eventData);
+      
+      this.addEventToStorage(eventData);
       
       this.emitBlockchainEvent('Minted', contractAddress, {
         txHash,
@@ -448,17 +428,19 @@ export class Web3Service {
       const amount = decodedLog.amount as bigint;
       
       const eventData = {
-        contractAddress,
+        contractAddress: contractAddress.toLowerCase(),
         eventType: 'Burned',
-        txHash,
+        txHash: txHash.toLowerCase(),
         blockNumber: blockNumber.toString(),
         timestamp,
         confirmations,
-        from: fromAddress,
+        from: fromAddress.toLowerCase() ,
         amount: amount.toString()
       };
       
       this.logger.log(`Burned event:`, eventData);
+      
+      this.addEventToStorage(eventData);
       
       this.emitBlockchainEvent('Burned', contractAddress, {
         txHash,
@@ -470,15 +452,8 @@ export class Web3Service {
       });
       
     } else {
-      this.logger.warn(`Unknown event topic: ${log.topics[0]} for contract ${contractAddress}`);
-      this.logger.log(`Raw event data:`, {
-        txHash,
-        contractAddress,
-        topics: log.topics,
-        data: log.data,
-        blockNumber,
-        confirmations
-      });
+      this.logger.warn(`Unknown event found`);
+      this.logger.warn(`Event: ${log}`);
     }
   }
 
@@ -517,7 +492,7 @@ export class Web3Service {
         }
       }
 
-      const transferTopic = this.web3.utils.sha3('Transfer(address,address,uint256)') || '';
+      const transferTopic = this.web3.utils.sha3('Transferred(address,address,uint256)') || '';
       const mintedTopic = this.web3.utils.sha3('Minted(address,uint256)') || '';
       const burnedTopic = this.web3.utils.sha3('Burned(address,uint256)') || '';
 
@@ -562,7 +537,7 @@ export class Web3Service {
                 logIndex: log.logIndex.toString()
               };
 
-              if (eventType === 'Transfer') {
+              if (eventType === 'Transferred') {
                 const decodedLog = this.web3.eth.abi.decodeLog(
                   [
                     { type: 'address', name: 'from', indexed: true },
@@ -613,7 +588,7 @@ export class Web3Service {
           };
 
           allEvents.push(
-            ...processLogs(transferLogs, 'Transfer'),
+            ...processLogs(transferLogs, 'Transferred'),
             ...processLogs(mintedLogs, 'Minted'),
             ...processLogs(burnedLogs, 'Burned')
           );
@@ -673,7 +648,7 @@ export class Web3Service {
   }
 
   private emitBlockchainEvent(
-    eventType: 'Transfer' | 'Minted' | 'Burned',
+    eventType: 'Transferred' | 'Minted' | 'Burned',
     contractAddress: string,
     data: {
       txHash: string;
@@ -699,4 +674,121 @@ export class Web3Service {
       this.logger.error(`Error emitting WebSocket event: ${error.message}`);
     }
   }
+
+  private addEventToStorage(eventData: any): void {
+    this.utils.appendToJsonFile(this.eventsFilePath, eventData);
+  }
+
+  async getEventDataByUserAddress(userAddress: string, eventType?: string): Promise<any[]> {
+    const events = this.utils.loadFromJsonFile(this.eventsFilePath);
+    const normalizedUserAddress = userAddress.toLowerCase();
+    const filteredEvents = events.filter(event => {
+      if (eventType) {
+        return (event.from === normalizedUserAddress || event.to === normalizedUserAddress) && event.eventType.toLowerCase() === eventType.toLowerCase();
+      } else {
+        return event.from === normalizedUserAddress || event.to === normalizedUserAddress;
+      }
+    });
+    return filteredEvents;
+  }
+
+  async getReportDaily(contractAddress?: string, eventType?: string): Promise<any> {
+    const events = this.utils.loadFromJsonFile(this.eventsFilePath);
+    let contractWiseDailyData: any = {};
+    let report: any = {};
+
+    const filteredEvents = events.filter(event => {
+      if (contractAddress && eventType) {
+        return event.contractAddress.toLowerCase() === contractAddress.toLowerCase() && event.eventType.toLowerCase() === eventType.toLowerCase();
+      } else if (contractAddress) {
+        return event.contractAddress.toLowerCase() === contractAddress.toLowerCase();
+      } else if (eventType) {
+        return event.eventType.toLowerCase() === eventType.toLowerCase();
+      } else {
+        return true;
+      }
+    });
+
+    filteredEvents.forEach(event => {
+      const contractAddr = event.contractAddress.toLowerCase();
+      const date = new Date(event.timestamp).toISOString().split('T')[0];
+      
+      if (!contractWiseDailyData[contractAddr]) {
+        contractWiseDailyData[contractAddr] = {
+          contractAddress: event.contractAddress,
+          totalEvents: 0,
+          totalTransferEvents: 0,
+          totalMintedEvents: 0,
+          totalBurnedEvents: 0,
+          totalTokensMinted: 0,
+          totalTokensBurned: 0,
+          totalTokensTransferred: 0,
+          dailyData: {}
+        };
+      }
+
+      if (!contractWiseDailyData[contractAddr].dailyData[date]) {
+        contractWiseDailyData[contractAddr].dailyData[date] = {
+          date: date,
+          totalEvents: 0,
+          transferEvents: 0,
+          mintedEvents: 0,
+          burnedEvents: 0,
+          tokensMinted: 0,
+          tokensBurned: 0,
+          tokensTransferred: 0,
+          events: []
+        };
+      }
+
+      contractWiseDailyData[contractAddr].totalEvents++;
+      contractWiseDailyData[contractAddr].dailyData[date].totalEvents++;
+      contractWiseDailyData[contractAddr].dailyData[date].events.push(event);
+
+      if (event.eventType === 'Transferred') {
+        contractWiseDailyData[contractAddr].totalTransferEvents++;
+        contractWiseDailyData[contractAddr].dailyData[date].transferEvents++;
+        if (event.amount) {
+          contractWiseDailyData[contractAddr].totalTokensTransferred += Number(event.amount);
+          contractWiseDailyData[contractAddr].dailyData[date].tokensTransferred += Number(event.amount);
+        }
+      } else if (event.eventType === 'Minted') {
+        contractWiseDailyData[contractAddr].totalMintedEvents++;
+        contractWiseDailyData[contractAddr].dailyData[date].mintedEvents++;
+        if (event.amount) {
+          contractWiseDailyData[contractAddr].totalTokensMinted += Number(event.amount);
+          contractWiseDailyData[contractAddr].dailyData[date].tokensMinted += Number(event.amount);
+        }
+      } else if (event.eventType === 'Burned') {
+        contractWiseDailyData[contractAddr].totalBurnedEvents++;
+        contractWiseDailyData[contractAddr].dailyData[date].burnedEvents++;
+        if (event.amount) {
+          contractWiseDailyData[contractAddr].totalTokensBurned += Number(event.amount);
+          contractWiseDailyData[contractAddr].dailyData[date].tokensBurned += Number(event.amount);
+        }
+      }
+    });
+
+    const contracts = Object.values(contractWiseDailyData).map((contract: any) => ({
+      ...contract,
+      dailyData: Object.values(contract.dailyData).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    }));
+
+    report = {
+      summary: {
+        totalContracts: Object.keys(contractWiseDailyData).length,
+        contractAddress: contractAddress || [...new Set(filteredEvents.map(event => event.contractAddress))].join(','),
+        totalEvents: filteredEvents.length,
+        totalTransferEvents: filteredEvents.filter(event => event.eventType === 'Transferred').length,
+        totalMintedEvents: filteredEvents.filter(event => event.eventType === 'Minted').length,
+        totalBurnedEvents: filteredEvents.filter(event => event.eventType === 'Burned').length,
+        totalTokensMinted: filteredEvents.filter(event => event.eventType === 'Minted').reduce((acc, event) => acc + Number(event.amount || 0), 0),
+        totalTokensBurned: filteredEvents.filter(event => event.eventType === 'Burned').reduce((acc, event) => acc + Number(event.amount || 0), 0),
+      },
+      contracts: contracts
+    };
+
+    return report;
+  }
+
 } 
