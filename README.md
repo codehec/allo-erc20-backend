@@ -105,19 +105,31 @@ The Web3Service now includes sophisticated ABI-based event processing:
 $ npm install
 ```
 
-## Compile and run the project
-
 ```bash
-# development
-$ npm run start
-
-# watch mode
 $ npm run start:dev
-
-# production mode
-$ npm run start:prod
 ```
+To test out endpoints
 
+Get Recent Events (with contract address in path)
+```bash
+curl -X GET "http://localhost:3000/web3/events/recent/0x31Fa545A6A0E4bBE7b39C6b3f8D1BcFD6546ED10"
+```
+Get Token Balance
+```bash
+curl -X GET "http://localhost:3000/web3/token/balance/0x31Fa545A6A0E4bBE7b39C6b3f8D1BcFD6546ED10/0x293127Fa5a8F97A4C3802782a37538A6a7A956D4"
+```
+WebSocket Status
+```bash
+curl -X GET http://localhost:3000/websocket/status
+```
+WebSocket Subscriptions
+```bash
+curl -X GET http://localhost:3000/websocket/subscriptions
+```
+WebSocket Info
+```bash
+curl -X GET http://localhost:3000/websocket/info
+```
 ## Run tests
 
 ```bash

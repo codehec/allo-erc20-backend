@@ -3,6 +3,22 @@ export const contractsConfig = {
     {
       address: '0x31Fa545A6A0E4bBE7b39C6b3f8D1BcFD6546ED10',
       name: 'Token1'
+    },
+    {
+      address: '0x8cc7b843344f3139b87cfbd0455f957fd0bf1e2c',
+      name: 'Token2'
+    },
+    {
+      address: '0x7be3ed7fbd6207b9974309d7c0eba76f7787aafc',
+      name: 'Token3'
+    },
+    {
+      address: '0x7e1fd8b84e2be36760f104867f9c5be44a52651b',
+      name: 'Token4'
+    },
+    {
+      address: '0x49438c40f2a89f0ef560bd70b0ab555e3349eb05',
+      name: 'Token5'
     }
   ],
   abi: [
