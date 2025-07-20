@@ -791,4 +791,14 @@ export class Web3Service {
     return report;
   }
 
+  async getBlockNumber(): Promise<number> {
+    try {
+      const blockNumber = await this.web3.eth.getBlockNumber();
+      return Number(blockNumber);
+    } catch (error) {
+      this.logger.error(`Error getting block number: ${error.message}`);
+      throw error;
+    }
+  }
+
 } 

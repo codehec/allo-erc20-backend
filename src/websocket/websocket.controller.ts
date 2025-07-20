@@ -1,12 +1,21 @@
 import { Controller, Get } from '@nestjs/common';
 import { BlockchainEventsGateway } from './websocket.gateway';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  WebsocketStatusResponseDto,
+  WebsocketSubscriptionsResponseDto,
+  WebsocketInfoResponseDto
+} from './dto/websocket.dto';
 
+@ApiTags('WebSocket')
 @Controller('websocket')
 export class WebsocketController {
   constructor(private readonly blockchainEventsGateway: BlockchainEventsGateway) {}
 
   @Get('status')
-  getStatus() {
+  @ApiOperation({ summary: 'Get WebSocket connection status' })
+  @ApiResponse({ status: 200, description: 'WebSocket status retrieved successfully', type: WebsocketStatusResponseDto })
+  getStatus(): WebsocketStatusResponseDto {
     return {
       connected: true,
       connectedClients: this.blockchainEventsGateway.getConnectedClientsCount(),
@@ -15,7 +24,9 @@ export class WebsocketController {
   }
 
   @Get('subscriptions')
-  getSubscriptions() {
+  @ApiOperation({ summary: 'Get all WebSocket subscriptions' })
+  @ApiResponse({ status: 200, description: 'Subscriptions retrieved successfully', type: WebsocketSubscriptionsResponseDto })
+  getSubscriptions(): WebsocketSubscriptionsResponseDto {
     return {
       subscriptions: this.blockchainEventsGateway.getAllSubscriptions(),
       timestamp: new Date().toISOString(),
@@ -23,7 +34,9 @@ export class WebsocketController {
   }
 
   @Get('info')
-  getInfo() {
+  @ApiOperation({ summary: 'Get WebSocket information and available events' })
+  @ApiResponse({ status: 200, description: 'WebSocket info retrieved successfully', type: WebsocketInfoResponseDto })
+  getInfo(): WebsocketInfoResponseDto {
     return {
       namespace: '/blockchain-events',
       events: ['Transfer', 'Minted', 'Burned'],

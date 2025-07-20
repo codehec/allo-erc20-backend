@@ -8,6 +8,16 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import {
+  SubscribeDto,
+  UnsubscribeDto,
+  BlockchainEventDto,
+  ConnectionResponseDto,
+  SubscriptionResponseDto,
+  SubscriptionsResponseDto,
+  ErrorResponseDto
+} from './dto/websocket.dto';
 
 export interface BlockchainEvent {
   contractAddress: string;
@@ -24,6 +34,7 @@ export interface BlockchainEvent {
   };
 }
 
+@ApiTags('WebSocket')
 @WebSocketGateway({
   cors: {
     origin: '*',
@@ -67,7 +78,7 @@ export class BlockchainEventsGateway
   }
 
   @SubscribeMessage('subscribe')
-  handleSubscribe(client: Socket, payload: { contractAddress?: string; event?: string }) {
+  handleSubscribe(client: Socket, payload: SubscribeDto) {
     const clientId = client.id;
     const clientData = this.connectedClients.get(clientId);
     
@@ -97,7 +108,7 @@ export class BlockchainEventsGateway
   }
 
   @SubscribeMessage('unsubscribe')
-  handleUnsubscribe(client: Socket, payload: { contractAddress?: string; event?: string }) {
+  handleUnsubscribe(client: Socket, payload: UnsubscribeDto) {
     const clientId = client.id;
     const clientData = this.connectedClients.get(clientId);
     
