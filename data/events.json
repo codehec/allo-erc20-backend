@@ -49,5 +49,15 @@
     "confirmations": 6,
     "to": "0x293127fa5a8f97a4c3802782a37538a6a7a956d4",
     "amount": "1"
+  },
+  {
+    "contractAddress": "0x31fa545a6a0e4bbe7b39c6b3f8d1bcfd6546ed10",
+    "eventType": "Minted",
+    "txHash": "0x56b5444d285ce327a086eac1db7a888add6f0d5ec26d0651827fc5098c1ae37a",
+    "blockNumber": "58994253",
+    "timestamp": "2025-07-21T05:51:18.345Z",
+    "confirmations": 7,
+    "to": "0x293127fa5a8f97a4c3802782a37538a6a7a956d4",
+    "amount": "1"
   }
 ]

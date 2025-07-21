@@ -3,17 +3,11 @@ import { Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class GetRecentEventsQueryDto {
-  @ApiPropertyOptional({ description: 'Contract address to filter events' })
-  @IsOptional()
-  @IsString()
-  contractAddress?: string;
-
-  @ApiPropertyOptional({ description: 'Starting block number', minimum: 1, maximum: 10000 })
+  @ApiPropertyOptional({ description: 'Starting block number', minimum: 1 })
   @IsOptional()
   @Transform(({ value }) => parseInt(value))
   @IsNumber()
   @Min(1)
-  @Max(10000)
   fromBlock?: number;
 
   @ApiPropertyOptional({ description: 'Ending block number', minimum: 1 })

@@ -68,7 +68,6 @@ export class Web3Service {
     if (this.isConnected && this.web3) {
       return this.web3;
     }
-
     for (let attempt = 1; attempt <= blockchainConfig.retryAttempts; attempt++) {
       try {
         this.web3 = new Web3(blockchainConfig.wssUrl);
@@ -136,7 +135,7 @@ export class Web3Service {
         } else {
           throw new Error(`Failed to connect after ${blockchainConfig.retryAttempts} attempts`);
         }
-      }
+    }
     }
     
     throw new Error('Connection failed after all attempts');
@@ -274,10 +273,10 @@ export class Web3Service {
       contractMap.set(contract.address.toLowerCase(), contract);
     }
     
-    const transferTopic = this.web3.utils.sha3('Transferred(address,address,uint256)') || '';
+    const transferredTopic = this.web3.utils.sha3('Transferred(address,address,uint256)') || '';
     const mintedTopic = this.web3.utils.sha3('Minted(address,uint256)') || '';
     const burnedTopic = this.web3.utils.sha3('Burned(address,uint256)') || '';
-    const topics = { transferTopic, mintedTopic, burnedTopic };
+    const topics = { transferredTopic, mintedTopic, burnedTopic };
     
     try {
       const subscription = await this.web3.eth.subscribe('logs', {
@@ -334,7 +333,7 @@ export class Web3Service {
     const blockNumber = log.blockNumber;
     const timestamp = new Date().toISOString();
 
-    if (log.topics[0] === topics.transferTopic) {
+    if (log.topics[0] === topics.transferredTopic) {
 
         const decodedLog = this.web3.eth.abi.decodeLog(
           [
@@ -492,7 +491,7 @@ export class Web3Service {
         }
       }
 
-      const transferTopic = this.web3.utils.sha3('Transferred(address,address,uint256)') || '';
+      const transferredTopic = this.web3.utils.sha3('Transferred(address,address,uint256)') || '';
       const mintedTopic = this.web3.utils.sha3('Minted(address,uint256)') || '';
       const burnedTopic = this.web3.utils.sha3('Burned(address,uint256)') || '';
 
@@ -502,7 +501,7 @@ export class Web3Service {
         try {
           const transferLogs = await this.web3.eth.getPastLogs({
             address: contract.address,
-            topics: [transferTopic],
+            topics: [transferredTopic],
             fromBlock: this.web3.utils.toHex(fromBlock),
             toBlock: this.web3.utils.toHex(toBlock)
           });
@@ -542,16 +541,16 @@ export class Web3Service {
                   [
                     { type: 'address', name: 'from', indexed: true },
                     { type: 'address', name: 'to', indexed: true },
-                    { type: 'uint256', name: 'value', indexed: false }
+                    { type: 'uint256', name: 'amount', indexed: true }
                   ],
                   log.data,
-                  [log.topics[1], log.topics[2]]
+                  [log.topics[1], log.topics[2], log.topics[3]]
                 );
                 eventData = {
                   ...eventData,
                   from: decodedLog.from,
                   to: decodedLog.to,
-                  value: (decodedLog.value as bigint).toString()
+                  amount: (decodedLog.amount as bigint).toString()
                 };
               } else if (eventType === 'Minted') {
                 const decodedLog = this.web3.eth.abi.decodeLog(

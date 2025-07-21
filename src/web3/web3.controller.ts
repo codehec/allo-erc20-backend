@@ -33,7 +33,6 @@ export class Web3Controller {
   @ApiQuery({ name: 'fromBlock', description: 'Starting block number', required: false, type: Number })
   @ApiQuery({ name: 'toBlock', description: 'Ending block number', required: false, type: Number })
   @ApiQuery({ name: 'limit', description: 'Maximum number of events to return', required: false, type: Number })
-  @ApiQuery({ name: 'contractAddress', description: 'Contract address', required: false })
   @ApiResponse({ status: 200, description: 'Recent events retrieved successfully', type: GetRecentEventsResponseDto })
   @ApiResponse({ status: 400, description: 'Bad request' })
   async getRecentEvents(
@@ -45,9 +44,8 @@ export class Web3Controller {
       const fromBlock = query.fromBlock ? parseInt(query.fromBlock.toString()) : currentBlock - 10000;
       const toBlock = query.toBlock ? parseInt(query.toBlock.toString()) : currentBlock;
       const limit = query.limit ? parseInt(query.limit.toString()) : 100;
-      const queryContractAddress = query.contractAddress;
       
-      const targetContractAddress = contractAddress || queryContractAddress || '';
+      const targetContractAddress = contractAddress?.toLowerCase() || '';
       
       const events = await this.web3Service.getRecentEvents(
         targetContractAddress,
